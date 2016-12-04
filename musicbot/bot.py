@@ -8,6 +8,8 @@ import aiohttp
 import discord
 import asyncio
 import traceback
+import requests
+import random
 
 from discord import utils
 from discord.object import Object
@@ -28,6 +30,7 @@ from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
 from musicbot.utils import load_file, write_file, sane_round_int
 
+from . import wowapi
 from . import exceptions
 from . import downloader
 from .opus_loader import load_opus_lib
@@ -1812,6 +1815,92 @@ class MusicBot(discord.Client):
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
 
+    #BEGIN CUSTOM COMMANDS
+
+
+    async def cmd_wowinfo(self, channel, leftover_args):
+        """
+        Usage:
+            {command_prefix}wowinfo character server
+
+        Requests information about a World of Warcraft character.
+        """
+        try:
+            output = await wowapi.basicInfo(leftover_args[1], leftover_args[0], "en-US")
+        except Exception as e:
+            raise exceptions.CommandError("Failed to retrieve character data: %s" %e, expire_in=20)
+        await self.safe_send_message(channel, output)
+        return
+
+    async def cmd_wowstats(self, leftover_args):
+        """
+        Usage:
+            {command_prefix}wowstats character server
+
+        Requests stat information for a World of Warcraft character.
+        """
+        try:
+            output = await wowapi.statInfo(leftover_args[1], leftover_args[0], "en-US")
+        except Exception as e:
+            raise exceptions.CommandError("Failed to retrieve character data: %s" %e, expire_in=20)
+
+        return Response(output)
+
+    async def cmd_accents(self):
+        """
+        Usage:
+            {command_prefix}accents
+
+        Prints a list of accented characters.
+        """
+        output = "`À Á Â Ã Ä Ç È É Ê Ë Ì Í Î Ï Ñ Ò Ó Õ Ö Š Ù Ú Û Ü Ý Ÿ Ž`\nhttp://usefulshortcuts.com/alt-codes/accents-alt-codes.php"
+        return Response(output, delete_after=30)
+
+    async def cmd_wowitems(self, channel, leftover_args):
+        """
+        Usage:
+            {command_prefix}wowitems character server
+
+        Requests information about a World of Warcraft character's equipment.
+        """
+        try:
+            output = await wowapi.equipInfo(leftover_args[1], leftover_args[0], "en-US")
+        except Exception as e:
+            raise exceptions.CommandError("Failed to retrieve character data; %s" %e, expire_in=20)
+        await self.safe_send_message(channel, output)
+        return
+
+    async def cmd_wowtalents(self, channel, leftover_args):
+        """
+        Usage:
+            {command_prefix}wowtalents character server
+
+        Requests information about a World of Warcraft character's talents.
+        """
+        output = await wowapi.talentInfo(leftover_args[1], leftover_args[0], "en-US")
+        await self.safe_send_message(channel, output)
+        return
+
+    async def cmd_roll(self, channel, author, leftover_args):
+        """
+        Usage:
+            {command_prefix}roll <number>
+
+        Rolls a <number>-sided die.
+        """
+        try:
+            arg = int(leftover_args[0])
+        except ValueError:
+            raise exceptions.CommandError("Please enter a number.")
+        except IndexError:
+            raise exceptions.CommandError("Please enter a number.")
+        if arg > 100:
+            await self.safe_send_message(channel, "I don't have anything larger than a d100.")
+        else:
+            await self.safe_send_message(channel, author.mention + " rolled a " + str(arg) + "-sided die: " + str(random.randint(1, arg)))
+        return
+
+    #END CUSTOM COMMANDS
     async def on_message(self, message):
         await self.wait_until_ready()
 
