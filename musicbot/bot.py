@@ -30,6 +30,7 @@ from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
 from musicbot.utils import load_file, write_file, sane_round_int
 
+from . import games
 from . import wowapi
 from . import exceptions
 from . import downloader
@@ -1846,6 +1847,48 @@ class MusicBot(discord.Client):
 
         return Response(output)
 
+    async def cmd_payday(self, channel, author):
+        """
+        Usage:
+            {command_prefix}payday
+
+        Claims a user's daily allowance of coins.
+        """
+        amount = await games.payday(author)
+        if amount < 0:
+            return Response("{mention} You have already claimed your coins for today.".format(mention=author.mention))
+        return Response("{mention} You got {coins} coins!".format(mention=author.mention, coins=amount))
+
+    async def cmd_balance(self, author, channel):
+        """
+        Usage:
+            {command_prefix}balance
+
+        Returns a user's coin balance.
+        """
+        try:
+            balance = await games.balance(author)
+            await self.safe_send_message(channel, "{mention} You have {coins} coins.".format(mention=author.mention, coins=balance))
+            return
+        except:
+            raise exceptions.CommandError("An error occurred: %s" %e, expire_in=20)
+        return
+
+    async def cmd_coinflip(self, author, channel, leftover_args):
+        if len(leftover_args) > 0:
+            try:
+                bet = int(leftover_args[0])
+                output = await games.flip_coin(author, bet)
+                await self.safe_send_message(channel, output)
+                return
+            except ValueError:
+                raise exceptions.CommandError("Please enter a number for your bet.", expire_in=20)
+            except Exception as e:
+                raise exceptions.CommandError("An error occurred: %s" %e, expire_in=20)
+        else:
+            output = await games.flip_coin(author, -1)
+            await self.safe_send_message(channel, output)
+            return
     async def cmd_accents(self):
         """
         Usage:
